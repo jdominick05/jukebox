@@ -33,10 +33,15 @@ plugins:
     clients:
       - MUSIC
       - ANDROID_VR
+      - ANDROID_MUSIC
+      - IOS
+      - MWEB
       - WEB
       - WEBEMBEDDED
+      - TV
   lavasrc:
     providers:
+      - "ytmsearch:%QUERY%"
       - "ytsearch:\"%ISRC%\""
       - "ytsearch:%QUERY%"
     sources:
@@ -69,8 +74,8 @@ plugins:
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-      snapshot: false
+    - dependency: "dev.lavalink.youtube:youtube-plugin:e41dd95f8bd134b51e75080fb28cc805fecb431a"
+      snapshot: true
     - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
       snapshot: false
   server:

@@ -179,7 +179,7 @@ This project is **AGPL-3.0-or-later**; see `LICENSE`. A modified version run as 
 | aiosqlite | 0.22.1 | MIT |
 | aiohttp | 3.14.5 | Apache-2.0 |
 | Lavalink server | 4.2.2 | MIT |
-| youtube-source | 1.18.2 | MIT |
+| youtube-source | e41dd95 (snapshot) | MIT |
 | LavaSrc | 4.8.3 | Apache-2.0 |
 | libdave-jvm (bundled by Lavalink) | 0.1.3 | Apache-2.0 |
 | koe (bundled by Lavalink) | 3.0.0-pre6 | MIT |
@@ -191,9 +191,8 @@ This project is **AGPL-3.0-or-later**; see `LICENSE`. A modified version run as 
 All runtime dependencies are permissive or Apache-2.0. Busybox runs as a separate container for volume ownership and is not linked into the bot.
 
 ## Known gaps
-- A live DAVE voice handshake was not run while building this repository; Tier 2 is the check and requires a token, guild, and voice channel.
-- Spotify, Apple Music, and Deezer were not exercised with real credentials.
-- LavaSrc credential environment overrides follow Lavalink's documented naming rule but were not tested with real accounts.
+- Audio playback through the live DAVE voice path was not verified end to end; the node loads `dave-jvm` and accepts the voice state, but the test track failed at YouTube.
+- Spotify metadata resolution through the `PLUGINS_LAVASRC_*` env overrides works; Apple Music and Deezer were not exercised.
 - Command sync has not been exercised against Discord here.
 - The Python base image follows `3.12-slim-bookworm` patches; pin a digest for byte-for-byte reproducible builds.
 - The Lavalink image has no `curl` or `wget`, so its healthcheck uses a bash TCP probe instead of `GET /version`.
