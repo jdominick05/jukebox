@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 jukebox contributors
+name: jukebox
+
+services:
+  lavalink-init:
+    image: busybox:1.37
+    restart: "no"
+    command: ["sh", "-c", "chown -R 322:322 /plugins"]
+    volumes:
+      - lavalink-plugins:/plugins
+    networks:
+      - backend
+
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
+    restart: unless-stopped
+    depends_on:
+      lavalink-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      LAVALINK_SERVER_PASSWORD: ${LAVALINK_PASSWORD:?set LAVALINK_PASSWORD in .env}
+      PLUGINS_YOUTUBE_ENABLED: ${SOURCE_YOUTUBE:-true}
+      PLUGINS_YOUTUBE_POT_TOKEN: ${YOUTUBE_POT_TOKEN:-}
+      PLUGINS_YOUTUBE_POT_VISITOR_DATA: ${YOUTUBE_VISITOR_DATA:-}
+      PLUGINS_YOUTUBE_OAUTH_ENABLED: ${YOUTUBE_OAUTH_ENABLED:-false}
+      PLUGINS_YOUTUBE_OAUTH_REFRESH_TOKEN: ${YOUTUBE_OAUTH_REFRESH_TOKEN:-}
+      PLUGINS_LAVASRC_SOURCES_SPOTIFY: ${SOURCE_SPOTIFY:-false}
+      PLUGINS_LAVASRC_SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      PLUGINS_LAVASRC_SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      PLUGINS_LAVASRC_SOURCES_APPLEMUSIC: ${SOURCE_APPLE_MUSIC:-false}
+      PLUGINS_LAVASRC_APPLEMUSIC_MEDIA_API_TOKEN: ${APPLE_MUSIC_TOKEN:-}
+      PLUGINS_LAVASRC_SOURCES_DEEZER: ${SOURCE_DEEZER:-false}
+      PLUGINS_LAVASRC_DEEZER_ARL: ${DEEZER_ARL:-}
+      PLUGINS_LAVASRC_DEEZER_MASTER_DECRYPTION_KEY: ${DEEZER_MASTER_DECRYPTION_KEY:-}
+      LOGGING_LEVEL_ROOT: ${LAVALINK_LOG_LEVEL:-INFO}
+      _JAVA_OPTIONS: ${JAVA_OPTIONS:--Xms256m -Xmx1G}
+    volumes:
+      - ./application.yml:/opt/Lavalink/application.yml:ro
+      - lavalink-plugins:/opt/Lavalink/plugins
+    networks:
+      - backend
+    expose:
+      - "2333"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/2333'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  bot:
+    build:
+      context: .
+    image: jukebox:local
+    restart: unless-stopped
+    stop_grace_period: 30s
+    env_file:
+      - .env
+    environment:
+      LAVALINK_HOST: lavalink
+      LAVALINK_PORT: "2333"
+      DATABASE_PATH: /data/jukebox.db
+      HEALTH_HOST: 0.0.0.0
+      HEALTH_PORT: "8080"
+    depends_on:
+      lavalink:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - jukebox-data:/data
+    ports:
+      - "127.0.0.1:${HEALTH_PORT:-8080}:8080"
+    networks:
+      - backend
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import os, sys, urllib.request; port = os.environ.get('HEALTH_PORT', '8080'); sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:' + port + '/healthz', timeout=4).status == 200 else 1)\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  lavalink-plugins:
+  jukebox-data:

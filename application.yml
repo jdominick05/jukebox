@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 jukebox contributors
+#
+# Lavalink 4.2.2 configuration.
+#
+# Secrets and source switches are supplied as environment variables; Lavalink
+# gives environment variables precedence over this file.  The bot's .env /
+# compose file maps the friendly SOURCE_* names onto the PLUGINS_* names.
+#
+# Password and plugin config overrides used by this project:
+#   LAVALINK_SERVER_PASSWORD
+#   PLUGINS_YOUTUBE_ENABLED
+#   PLUGINS_YOUTUBE_POT_TOKEN
+#   PLUGINS_YOUTUBE_POT_VISITOR_DATA
+#   PLUGINS_YOUTUBE_OAUTH_ENABLED / PLUGINS_YOUTUBE_OAUTH_REFRESH_TOKEN
+#   PLUGINS_LAVASRC_SOURCES_SPOTIFY / APPLEMUSIC / DEEZER
+#   PLUGINS_LAVASRC_SPOTIFY_CLIENT_ID / _CLIENT_SECRET
+#   PLUGINS_LAVASRC_APPLEMUSIC_MEDIA_API_TOKEN
+#   PLUGINS_LAVASRC_DEEZER_ARL / _MASTER_DECRYPTION_KEY
+
+server:
+  port: 2333
+  address: 0.0.0.0
+  http2:
+    enabled: false
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    clients:
+      - MUSIC
+      - ANDROID_VR
+      - WEB
+      - WEBEMBEDDED
+  lavasrc:
+    providers:
+      - "ytsearch:\"%ISRC%\""
+      - "ytsearch:%QUERY%"
+    sources:
+      spotify: false
+      applemusic: false
+      deezer: false
+      yandexmusic: false
+      flowerytts: false
+      youtube: false
+      vkmusic: false
+      tidal: false
+      qobuz: false
+      ytdlp: false
+      jiosaavn: false
+    spotify:
+      clientId: ""
+      clientSecret: ""
+      countryCode: "US"
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+    applemusic:
+      countryCode: "US"
+      mediaAPIToken: ""
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+    deezer:
+      masterDecryptionKey: ""
+      arl: ""
+      formats: ["FLAC", "MP3_320", "MP3_256", "MP3_128", "MP3_64", "AAC_64"]
+
+lavalink:
+  plugins:
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
+      snapshot: false
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
+      snapshot: false
+  server:
+    password: "change-me-via-LAVALINK_SERVER_PASSWORD"
+    sources:
+      youtube: false
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      nico: false
+      http: true
+      local: false
+    filters:
+      volume: true
+      equalizer: true
+      karaoke: false
+      timescale: false
+      tremolo: false
+      vibrato: false
+      distortion: false
+      rotation: false
+      channelMix: false
+      lowPass: false
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    opusEncodingQuality: 10
+    resamplingQuality: HIGH
+    trackStuckThresholdMs: 10000
+    useSeekGhosting: true
+    youtubePlaylistLoadLimit: 6
+    playerUpdateInterval: 5
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+    gc-warnings: true
+
+metrics:
+  prometheus:
+    enabled: false
+    endpoint: /metrics
+
+logging:
+  file:
+    path: ./logs/
+  level:
+    root: INFO
+    lavalink: INFO

@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 jukebox contributors
+#
+# /etc/systemd/system/lavalink.service
+#
+# Install:
+#   useradd --system --home /opt/lavalink --shell /usr/sbin/nologin lavalink
+#   install -d -o lavalink -g lavalink /opt/lavalink/plugins /opt/lavalink/logs
+#   # download Lavalink.jar 4.2.2 and application.yml into /opt/lavalink
+#   install -m 0640 -o root -g lavalink deploy/lavalink.env.example /etc/jukebox/lavalink.env
+#   systemctl daemon-reload && systemctl enable --now lavalink
+
+[Unit]
+Description=Lavalink audio node
+Documentation=https://github.com/lavalink-devs/Lavalink
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lavalink
+Group=lavalink
+WorkingDirectory=/opt/lavalink
+EnvironmentFile=/etc/jukebox/lavalink.env
+ExecStart=/usr/bin/java -jar /opt/lavalink/Lavalink.jar
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Hardening (the JVM needs its own tmp and executable mappings)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/lavalink/plugins /opt/lavalink/logs
+CapabilityBoundingSet=
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

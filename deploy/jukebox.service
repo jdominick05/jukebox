@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 jukebox contributors
+#
+# /etc/systemd/system/jukebox.service
+#
+# Install:
+#   useradd --system --home /opt/jukebox --shell /usr/sbin/nologin jukebox
+#   install -d -o jukebox -g jukebox /opt/jukebox /var/lib/jukebox
+#   rsync -a --exclude .venv --exclude .env ./ /opt/jukebox/
+#   python3 -m venv /opt/jukebox/.venv
+#   /opt/jukebox/.venv/bin/pip install -r /opt/jukebox/requirements.txt
+#   install -d -m 0750 /etc/jukebox
+#   install -m 0640 -o root -g jukebox deploy/jukebox.env.example /etc/jukebox/jukebox.env
+#   systemctl daemon-reload && systemctl enable --now jukebox
+
+[Unit]
+Description=Jukebox Discord music bot
+Documentation=https://github.com/your-org/jukebox
+After=network-online.target lavalink.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jukebox
+Group=jukebox
+WorkingDirectory=/opt/jukebox
+EnvironmentFile=/etc/jukebox/jukebox.env
+ExecStart=/opt/jukebox/.venv/bin/python -m jukebox
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jukebox
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
