@@ -15,7 +15,7 @@
 
 [Unit]
 Description=Jukebox Discord music bot
-Documentation=https://github.com/your-org/jukebox
+Documentation=https://github.com/jdominick05/jukebox
 After=network-online.target lavalink.service
 Wants=network-online.target
 
