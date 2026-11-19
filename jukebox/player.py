@@ -35,6 +35,11 @@ VOICE_CONNECT_TIMEOUT = 12.0
 VOICE_RECONNECT_ATTEMPTS = (1.0, 2.0, 4.0)
 
 
+async def _sleep(seconds: float) -> None:
+    """Indirection so tests can exercise timers without real time."""
+    await asyncio.sleep(seconds)
+
+
 class JukeboxLavalinkPlayer(lavalink.DefaultPlayer):
     """No built-in auto-advance; ``GuildPlayer`` owns the queue."""
 
@@ -336,6 +341,14 @@ class GuildPlayer:
         self._position_ms = 0
         await self.persist()
 
+    def reset_after_node_loss(self) -> None:
+        """Drop a track that cannot exist on the node's fresh session."""
+        self.current = None
+        self.paused = False
+        self._position_ms = 0
+        self.consecutive_failures = 0
+        self.voice_channel_id = None
+
     async def handle_track_end(self, encoded: str, reason: lavalink.EndReason) -> None:
         async with self._lock:
             if self.current is None or self.current.encoded != encoded:
@@ -381,9 +394,10 @@ class GuildPlayer:
 
     async def _idle_after(self, delay: int) -> None:
         try:
-            await asyncio.sleep(delay)
+            await _sleep(delay)
             if self._closed or self.current is not None or self.queue:
                 return
+            self._idle_task = None
             await self.disconnect(
                 clear_queue=False,
                 reason=f"Left voice after {delay}s of inactivity.",
@@ -402,7 +416,7 @@ class GuildPlayer:
 
         guild = self.bot.get_guild(self.guild_id)
         channel = guild.get_channel(self.voice_channel_id) if guild is not None else None
-        if not isinstance(channel, discord.VoiceChannel):
+        if channel is None or not hasattr(channel, "members"):
             return
         if any(not member.bot for member in channel.members):
             return
@@ -410,15 +424,18 @@ class GuildPlayer:
 
     async def _empty_after(self, delay: int) -> None:
         try:
-            await asyncio.sleep(delay)
+            await _sleep(delay)
             if self._closed or self.voice_channel_id is None:
                 return
             guild = self.bot.get_guild(self.guild_id)
             channel = guild.get_channel(self.voice_channel_id) if guild is not None else None
-            if isinstance(channel, discord.VoiceChannel) and any(
-                not member.bot for member in channel.members
+            if (
+                channel is not None
+                and hasattr(channel, "members")
+                and any(not member.bot for member in channel.members)
             ):
                 return
+            self._empty_task = None
             await self.disconnect(
                 clear_queue=True,
                 reason=f"Left voice because the channel was empty for {delay}s.",
@@ -556,7 +573,7 @@ class GuildPlayer:
         if self.text_channel_id is None:
             return
         channel = self.bot.get_channel(self.text_channel_id)
-        if channel is None or not isinstance(channel, discord.abc.Messageable):
+        if channel is None or not hasattr(channel, "send"):
             return
         try:
             await channel.send(content=content, embed=embed)

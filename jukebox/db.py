@@ -83,8 +83,10 @@ class Database:
         current = snapshot.current.to_json() if snapshot.current is not None else None
         async with self._lock:
             conn = self._connection
-            await conn.execute("BEGIN IMMEDIATE")
             try:
+                if conn.in_transaction:
+                    await conn.rollback()
+                await conn.execute("BEGIN IMMEDIATE")
                 await conn.execute(
                     """
                     INSERT INTO guild_state (
@@ -175,8 +177,10 @@ class Database:
     async def delete_guild(self, guild_id: int) -> None:
         async with self._lock:
             conn = self._connection
-            await conn.execute("BEGIN IMMEDIATE")
             try:
+                if conn.in_transaction:
+                    await conn.rollback()
+                await conn.execute("BEGIN IMMEDIATE")
                 await conn.execute("DELETE FROM guild_state WHERE guild_id = ?", (guild_id,))
                 await conn.execute("DELETE FROM queue_items WHERE guild_id = ?", (guild_id,))
                 await conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))

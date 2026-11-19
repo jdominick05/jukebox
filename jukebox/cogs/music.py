@@ -45,6 +45,7 @@ class Music(commands.Cog):
             (self._on_track_exception, lavalink.TrackExceptionEvent),
             (self._on_track_stuck, lavalink.TrackStuckEvent),
             (self._on_websocket_closed, lavalink.WebSocketClosedEvent),
+            (self._on_node_ready, lavalink.NodeReadyEvent),
         )
         for hook, event_type in self._hooks:
             client.add_event_hook(hook, event=event_type)
@@ -107,6 +108,32 @@ class Music(commands.Cog):
         except Exception:
             _log.exception("voice websocket close handling failed")
 
+    async def _on_node_ready(self, event: lavalink.NodeReadyEvent) -> None:
+        """A fresh node session has no players; stop stale local state.
+
+        Session-resumed reconnects keep their players and are left alone.  A
+        non-resumed session means the node lost every queued/current player, so
+        pretending the old track is still playing would make /play silently
+        queue instead of starting.  Reset the current track, keep the queue, and
+        tell the channel what happened.
+        """
+        if event.resumed:
+            return
+        try:
+            for player in list(self.bot.players.values()):
+                if player.current is None:
+                    continue
+                player.reset_after_node_loss()
+                await player.persist()
+                await player.notify(
+                    embed=error_embed(
+                        "The audio node restarted.",
+                        "Playback stopped and the queue was kept. Use `/play` to start again.",
+                    )
+                )
+        except Exception:
+            _log.exception("node recovery handling failed")
+
     async def _report_failure(self, player: GuildPlayer, encoded: str, reason: str) -> None:
         report = await player.handle_failure(encoded, reason)
         if report is None:
@@ -123,7 +150,7 @@ class Music(commands.Cog):
             raise UserError("Use this in a server.")
         state = getattr(interaction.user, "voice", None)
         channel = getattr(state, "channel", None)
-        if not isinstance(channel, discord.VoiceChannel):
+        if channel is None:
             raise UserError("Join a voice channel first.")
         return channel
 
@@ -150,13 +177,10 @@ class Music(commands.Cog):
         dj_role_id = self.bot.dj_role_id(interaction.guild.id)
         if dj_role_id is not None:
             role = interaction.guild.get_role(dj_role_id)
-            is_admin = isinstance(member, discord.Member) and member.guild_permissions.manage_guild
-            if (
-                role is not None
-                and not is_admin
-                and isinstance(member, discord.Member)
-                and role not in member.roles
-            ):
+            permissions = getattr(member, "guild_permissions", None)
+            is_admin = bool(getattr(permissions, "manage_guild", False))
+            roles = getattr(member, "roles", ())
+            if role is not None and not is_admin and role not in roles:
                 raise UserError(
                     f"Only members with the **{role.name}** role (or Manage Server) can control playback."
                 )
@@ -336,6 +360,8 @@ class Music(commands.Cog):
         interaction: discord.Interaction,
         level: app_commands.Range[int, 0, 100],
     ) -> None:
+        if not 0 <= int(level) <= 100:
+            raise UserError("Volume must be between 0 and 100.")
         player, _ = await self._control_target(interaction)
         await player.set_volume(int(level))
         await interaction.response.send_message(f"Volume set to {level}%.", ephemeral=True)

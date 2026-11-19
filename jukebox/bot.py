@@ -194,7 +194,7 @@ class JukeboxBot(commands.Bot):
             return
 
         voice = guild.get_channel(snapshot.voice_channel_id) if snapshot.voice_channel_id else None
-        if not isinstance(voice, discord.VoiceChannel):
+        if voice is None or not hasattr(voice, "permissions_for"):
             _log.info(
                 "saved voice channel is gone; dropping state",
                 extra={"guild_id": snapshot.guild_id, "channel_id": snapshot.voice_channel_id},
@@ -359,8 +359,15 @@ class JukeboxBot(commands.Bot):
         ready = self.is_ready()
         latency = round(self.latency * 1000) if ready else None
         lavalink = self.lavalink
+        node_available = bool(lavalink and lavalink.available)
+        if not ready:
+            status = "starting"
+        elif not node_available:
+            status = "degraded"
+        else:
+            status = "ok"
         return {
-            "status": "ok" if ready else "starting",
+            "status": status,
             "version": __version__,
             "bot": {
                 "ready": ready,
@@ -370,7 +377,7 @@ class JukeboxBot(commands.Bot):
             },
             "players": len(self.players),
             "lavalink": {
-                "available": bool(lavalink and lavalink.available),
+                "available": node_available,
                 "nodes": lavalink.nodes if lavalink else [],
             },
         }

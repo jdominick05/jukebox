@@ -23,6 +23,7 @@ dist/
 .pytest_cache/
 .coverage
 htmlcov/
+tests/integration/artifacts/
 
 # Editors / OS
 .idea/
