@@ -17,6 +17,10 @@
 #   PLUGINS_LAVASRC_SPOTIFY_CLIENT_ID / _CLIENT_SECRET
 #   PLUGINS_LAVASRC_APPLEMUSIC_MEDIA_API_TOKEN
 #   PLUGINS_LAVASRC_DEEZER_ARL / _MASTER_DECRYPTION_KEY
+#
+# Deezer is this install's Direct playback source: the providers below put
+# Deezer first so mirrored metadata resolves to Deezer streams.  Secrets
+# (password, Deezer ARL / master key) are supplied only via env vars.
 
 server:
   port: 2333
@@ -41,13 +45,15 @@ plugins:
       - TV
   lavasrc:
     providers:
+      - "dzsearch:%QUERY%"
+      - "dzisrc:%ISRC%"
       - "ytmsearch:%QUERY%"
       - "ytsearch:\"%ISRC%\""
       - "ytsearch:%QUERY%"
     sources:
-      spotify: false
+      spotify: true
       applemusic: false
-      deezer: false
+      deezer: true
       yandexmusic: false
       flowerytts: false
       youtube: false
@@ -60,6 +66,9 @@ plugins:
       clientId: ""
       clientSecret: ""
       countryCode: "US"
+      # The default true makes an extra /v1/artists lookup on spsearch: that
+      # returns 403 for this app; only artist images are lost by skipping it.
+      resolveArtistsInSearch: false
       playlistLoadLimit: 6
       albumLoadLimit: 6
     applemusic:
@@ -70,7 +79,11 @@ plugins:
     deezer:
       masterDecryptionKey: ""
       arl: ""
-      formats: ["FLAC", "MP3_320", "MP3_256", "MP3_128", "MP3_64", "AAC_64"]
+      # Premium (MP3 320 kbps) tiers: FLAC needs the HiFi tier and its
+      # decrypt path is fragile (LavaSrc #297); the 64 kbps formats can be
+      # handed back as a fallback and sound bad.  Keep MP3_320 first with a
+      # 128 kbps floor, which is transparent after Lavalink's Opus encode.
+      formats: ["MP3_320", "MP3_256", "MP3_128"]
 
 lavalink:
   plugins:

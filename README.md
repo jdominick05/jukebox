@@ -46,13 +46,13 @@ curl -s http://127.0.0.1:8080/healthz
 | `JAVA_OPTIONS` | `-Xms256m -Xmx1G` | Lavalink JVM heap; Compose only. |
 | `LAVALINK_LOG_LEVEL` | `INFO` | Lavalink root log level; Compose only. |
 | `DEFAULT_SOURCE` | `youtube` | Text-search source: `youtube`, `youtube_music`, `soundcloud`, `spotify`, `apple_music`, `deezer`; must be enabled. |
-| `SOURCE_YOUTUBE` | `true` | youtube-source; required by Spotify and Apple Music. |
+| `SOURCE_YOUTUBE` | `true` | youtube-source; optional. Spotify and Apple Music mirror to Deezer instead. |
 | `SOURCE_SOUNDCLOUD` | `true` | SoundCloud search and URLs. |
 | `SOURCE_BANDCAMP` | `true` | Bandcamp URLs only. |
 | `SOURCE_HTTP` | `true` | Direct audio URLs. |
-| `SOURCE_SPOTIFY` | `false` | Spotify metadata; requires credentials below and `SOURCE_YOUTUBE=true`. |
-| `SOURCE_APPLE_MUSIC` | `false` | Apple Music metadata; requires a token below and `SOURCE_YOUTUBE=true`. |
-| `SOURCE_DEEZER` | `false` | Deezer playback; requires both Deezer values below. |
+| `SOURCE_SPOTIFY` | `false` | Spotify metadata; requires credentials below and `SOURCE_DEEZER=true`. |
+| `SOURCE_APPLE_MUSIC` | `false` | Apple Music metadata; requires a token below and `SOURCE_DEEZER=true`. |
+| `SOURCE_DEEZER` | `false` | Deezer playback (Direct stream source); requires both Deezer values below. |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | empty | Spotify application credentials. |
 | `APPLE_MUSIC_TOKEN` | empty | Apple Music Media API token. |
 | `DEEZER_ARL`, `DEEZER_MASTER_DECRYPTION_KEY` | empty | Deezer cookie and decryption key. |
@@ -69,6 +69,38 @@ curl -s http://127.0.0.1:8080/healthz
 | `HEALTH_HOST`, `HEALTH_PORT` | `0.0.0.0`, `8080` | `/healthz` listener; Compose publishes it on `127.0.0.1:${HEALTH_PORT}`. |
 | `LOG_LEVEL` | `INFO` | Python logging level. |
 | `LOG_JSON` | `true` | JSON log lines; set `false` for human-readable output. |
+
+## Deezer as the stream source
+
+Deezer is LavaSrc's *Direct* playback source: `dzsearch:` (plain text), Deezer
+URLs, and metadata mirrored from Spotify/Apple Music all resolve to Deezer
+streams. To run the bot entirely on Deezer:
+
+```dotenv
+DEFAULT_SOURCE=deezer
+SOURCE_DEEZER=true
+SOURCE_YOUTUBE=false
+DEEZER_ARL=<cookie from a logged-in Deezer account>
+DEEZER_MASTER_DECRYPTION_KEY=<16-byte master key>
+```
+
+The other sources can stay enabled without changing where audio comes from.
+`SOURCE_YOUTUBE=true` re-enables the youtube-plugin and the `ytsearch:` /
+`ytmsearch:` provider fallbacks; `SOURCE_SPOTIFY=true` re-enables Spotify
+URLs and `spsearch:`. Because the Deezer providers are first, Spotify (and
+Apple Music, if enabled) metadata is mirrored to Deezer streams, and
+`DEFAULT_SOURCE=deezer` keeps plain-text searches on Deezer. Explicit YouTube
+URLs still play from YouTube. Apple Music needs `APPLE_MUSIC_TOKEN`; leave
+`SOURCE_APPLE_MUSIC=false` until one is set.
+
+`docker-compose.yml` passes both Deezer values to the node as
+`PLUGINS_LAVASRC_DEEZER_*` and maps `SOURCE_DEEZER` onto
+`PLUGINS_LAVASRC_SOURCES_DEEZER`. `application.yml` puts `dzsearch:`/`dzisrc:`
+first in `plugins.lavasrc.providers`, so mirroring resolves to Deezer; with
+`SOURCE_YOUTUBE=false` the youtube-plugin is disabled and its leftover
+`ytsearch:` fallbacks cannot resolve. Keep the bot's `SOURCE_*` switches and the
+node's `PLUGINS_*` switches in sync — this also applies to the two systemd env
+files in `deploy/`.
 
 ## Commands
 Control commands require the caller to be in the bot's voice channel; with a DJ role set, the caller also needs that role or `Manage Server`.
@@ -164,7 +196,7 @@ The bot must already be in that guild and able to join the voice channel. Tier 2
 | `/healthz` stays 503 | Check `docker compose logs lavalink`; verify the password and that the node is 4.2.2. |
 | Bot joins voice but no audio | Confirm Lavalink is 4.2.x and UDP to Discord voice is allowed. |
 | YouTube asks for verification or returns 403 | Set `YOUTUBE_POT_TOKEN` and `YOUTUBE_VISITOR_DATA`, or OAuth with a burner account; neither is guaranteed. |
-| `SOURCE_SPOTIFY requires ...` or Apple Music fails at startup | Set the credential variables and keep `SOURCE_YOUTUBE=true`. |
+| `SOURCE_SPOTIFY requires ...` or Apple Music fails at startup | Set the credential variables and keep `SOURCE_DEEZER=true`. |
 | Slash commands do not appear | Re-invite with both scopes; global sync can take time; set `DISCORD_GUILD_ID` to test immediately. |
 | Lavalink cannot write plugins | Keep the `lavalink-init` service; it fixes ownership of the plugin volume. |
 
@@ -192,7 +224,7 @@ All runtime dependencies are permissive or Apache-2.0. Busybox runs as a separat
 
 ## Known gaps
 - Audio playback through the live DAVE voice path was not verified end to end; the node loads `dave-jvm` and accepts the voice state, but the test track failed at YouTube.
-- Spotify metadata resolution through the `PLUGINS_LAVASRC_*` env overrides works; Apple Music and Deezer were not exercised.
+- Spotify metadata resolution through the `PLUGINS_LAVASRC_*` env overrides works; Apple Music was not exercised. Deezer `dzsearch:` and Deezer track URLs resolve to `deezer` tracks on the live 4.2.2 node; end-to-end Discord voice playback was not verified.
 - Command sync has not been exercised against Discord here.
 - The Python base image follows `3.12-slim-bookworm` patches; pin a digest for byte-for-byte reproducible builds.
-- The Lavalink image has no `curl` or `wget`, so its healthcheck uses a bash TCP probe instead of `GET /version`.
+- The Lavalink healthcheck uses a bash TCP probe on 2333 instead of `GET /version`, so it does not depend on which HTTP client the image happens to ship.

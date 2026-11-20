@@ -68,17 +68,36 @@ def test_spotify_requires_credentials(base_env: dict[str, str]) -> None:
         load_config(base_env)
 
 
-def test_spotify_requires_youtube_for_mirroring(base_env: dict[str, str]) -> None:
+def test_spotify_requires_deezer_for_mirroring(base_env: dict[str, str]) -> None:
     base_env.update(
         {
             "SOURCE_SPOTIFY": "true",
             "SPOTIFY_CLIENT_ID": "id",
             "SPOTIFY_CLIENT_SECRET": "secret",
-            "SOURCE_YOUTUBE": "false",
+            "SOURCE_DEEZER": "false",
         }
     )
-    with pytest.raises(ConfigError, match="resolve to YouTube"):
+    with pytest.raises(ConfigError, match="mirror to Deezer"):
         load_config(base_env)
+
+
+def test_spotify_and_apple_music_are_allowed_with_deezer(base_env: dict[str, str]) -> None:
+    base_env.update(
+        {
+            "SOURCE_SPOTIFY": "true",
+            "SPOTIFY_CLIENT_ID": "id",
+            "SPOTIFY_CLIENT_SECRET": "secret",
+            "SOURCE_APPLE_MUSIC": "true",
+            "APPLE_MUSIC_TOKEN": "token",
+            "SOURCE_YOUTUBE": "false",
+            "DEFAULT_SOURCE": "deezer",
+            "SOURCE_DEEZER": "true",
+            "DEEZER_ARL": "arl-cookie",
+            "DEEZER_MASTER_DECRYPTION_KEY": "master-key",
+        }
+    )
+    config = load_config(base_env)
+    assert {Source.SPOTIFY, Source.APPLE_MUSIC, Source.DEEZER} <= config.enabled_sources
 
 
 def test_deezer_requires_arl(base_env: dict[str, str]) -> None:

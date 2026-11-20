@@ -16,6 +16,7 @@ from ..errors import UserError
 from ..models import LoopMode, Track
 from ..player import MAX_CONSECUTIVE_FAILURES
 from ..queue_view import QueueView
+from ..search_view import SearchView, build_suggestion_embed
 from ..sources import resolve_query
 from ..ui import (
     error_embed,
@@ -242,6 +243,17 @@ class Music(commands.Cog):
 
         if not tracks:
             raise UserError("Lavalink returned tracks that cannot be queued.")
+
+        if result.load_type is lavalink.LoadType.SEARCH:
+            # A SEARCH result is a list of candidates, not a playlist.  List
+            # them and wait for the requester to pick one; queueing all of them
+            # made /play <words> start dozens of tracks at once.
+            view = SearchView(player, tracks, interaction.user.id, query)
+            message = await interaction.followup.send(
+                embed=build_suggestion_embed(query, view.tracks), view=view
+            )
+            view.message = message
+            return
 
         was_idle = player.current is None
         added, dropped = await player.enqueue(tracks)

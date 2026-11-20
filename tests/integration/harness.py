@@ -207,9 +207,10 @@ class FakeFollowup:
         *,
         embed: discord.Embed | None = None,
         ephemeral: bool = False,
+        view: discord.ui.View | None = None,
         **kwargs: Any,
     ) -> FakeMessage:
-        message = FakeMessage(content=content, embed=embed)
+        message = FakeMessage(content=content, embed=embed, view=view)
         self.sent.append(message)
         return message
 

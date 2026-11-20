@@ -220,10 +220,8 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         errors.append("SOURCE_DEEZER requires DEEZER_ARL")
     if Source.DEEZER in enabled_sources and not _env(env, "DEEZER_MASTER_DECRYPTION_KEY"):
         errors.append("SOURCE_DEEZER requires DEEZER_MASTER_DECRYPTION_KEY")
-    if enabled_sources & {Source.SPOTIFY, Source.APPLE_MUSIC} and Source.YOUTUBE not in enabled_sources:
-        errors.append(
-            "Spotify and Apple Music resolve to YouTube; enable SOURCE_YOUTUBE when either is enabled"
-        )
+    if enabled_sources & {Source.SPOTIFY, Source.APPLE_MUSIC} and Source.DEEZER not in enabled_sources:
+        errors.append("Spotify and Apple Music mirror to Deezer; enable SOURCE_DEEZER when either is enabled")
 
     log_level = _env(env, "LOG_LEVEL", "INFO").upper()
     if log_level not in logging.getLevelNamesMapping():
